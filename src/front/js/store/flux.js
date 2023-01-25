@@ -1,3 +1,4 @@
+const apiUrl=process.env.BACKEND_URL
 const getState = ({ getStore, getActions, setStore }) => {
 	return {
 		store: {
@@ -20,7 +21,66 @@ const getState = ({ getStore, getActions, setStore }) => {
 			exampleFunction: () => {
 				getActions().changeColor(0, "green");
 			},
-
+			login: async(email, password) => {
+				const resp = await fetch(apiUrl + "/api/login",{
+                        method: "POST",
+                        headers:{
+							"Content-Type": "application/json"
+						},
+					
+                        body: JSON.stringify({
+                            email,
+                            password
+                        })
+					})
+					if (!resp.ok){
+						return resp.statusText
+					}
+					const data = await resp.json()
+					setStore({
+						accessToken: data.access_token,  
+						refreshToken: data.refresh_token
+					})
+					localStorage.setItem("accessToken", data.access_token)
+					localStorage.setItem("refreshToken", data.refresh_token)
+                return "ok"
+			},
+			loadTokens: () =>{
+				let accessToken=localStorage.getItem("accessToken")
+				let refreshToken=localStorage.getItem("refreshToken")
+                setStore({accessToken, refreshToken})
+			},
+			logout: async () => {
+				if(!getStore().accessToken) return
+                const resp = await fetch(apiUrl + "/api/logout",{
+					method: "POST",
+					headers:{
+						...getActions().getAuthorizationHeader()}
+					})
+					if (!resp.ok){
+					console.error(resp.statusText)
+                    return false
+                    }
+					localStorage.removeItem("refreshToken")
+					localStorage.removeItem("accessToken")
+					setStore({accessToken:null, refreshToken:null})
+					return true
+			},
+			getAuthorizationHeader: () => {
+				let store=getStore()
+				return {"Authorization": "Bearer " + store.accessToken}
+			},
+			getProfile: async () => {
+				const resp = await fetch(apiUrl + "/api/userinfo", {
+					headers: {...getActions().getAuthorizationHeader()
+				}
+			})
+			if(!resp.ok){
+				console.error(resp.statusText)
+			}
+			let data = await resp.json()
+			return data
+			  },
 			getMessage: async () => {
 				try{
 					// fetching data from the backend
